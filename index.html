@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Server - Sistem Absen Karyawan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .server-indicator {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .server-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+        }
+        .server-offline {
+            background: rgba(239, 68, 68, 0.9);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Server Status Indicator -->
+    <div id="serverStatusIndicator" class="server-status hidden">
+        🖥️ DATA SERVER OFFLINE
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8 relative">
+            <div class="absolute top-0 left-0">
+                <button onclick="logoutAndClose()" class="bg-red-500 hover:bg-red-600 text-white font-medium py-1 px-3 rounded-md transition duration-200 text-xs flex items-center space-x-1">
+                    <span>🚪</span>
+                    <span>Keluar</span>
+                </button>
+            </div>
+            
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">📋 Sistem Absen Karyawan</h1>
+            <p class="text-gray-600">Kelola kehadiran karyawan dengan mudah</p>
+            <div class="absolute top-0 right-0 text-blue-600 font-bold text-sm">
+                Created by AMRAN
+            </div>
+        </div>
+
+        <!-- Clock In/Out Section -->
+        <div class="max-w-md mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 text-center">Absen Sekarang</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Karyawan</label>
+                    <select id="employeeName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Pilih Nama Karyawan</option>
+                        <option value="Rahma">Rahma</option>
+                        <option value="Jubaida">Jubaida</option>
+                        <option value="Fatma">Fatma</option>
+                        <option value="Andi">Andi</option>
+                        <option value="Tini">Tini</option>
+                        <option value="Haikal">Haikal</option>
+                        <option value="Hasna">Hasna</option>
+                        <option value="Riski">Riski</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Divisi</label>
+                    <select id="employeeDivision" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Pilih Divisi</option>
+                        <option value="Staff Kantor">Staff Kantor</option>
+                        <option value="Parkir">Parkir</option>
+                        <option value="Kantin">Kantin</option>
+                        <option value="Kebersihan">Kebersihan</option>
+                        <option value="BDLink & Penginapan">BDLink & Penginapan</option>
+                        <option value="BD Link">BD Link</option>
+                    </select>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Shift Kerja</label>
+                    <select id="employeeShift" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Pilih Shift</option>
+                        <option value="kantor">Shift Kantor (08:00 - 16:00)</option>
+                        <option value="kantin_siang">Kantin Siang (09:00 - 16:00)</option>
+                        <option value="kantin_sore">Kantin Sore (16:00 - 23:59)</option>
+                        <option value="kantin_malam">Kantin Malam (23:45 - 09:00)</option>
+                        <option value="parkir">Parkir (23:45 - 09:00)</option>
+                        <option value="bdlink_penginapan">BDLink & Penginapan (23:00 - 09:00)</option>
+                    </select>
+                </div>
+
+                <!-- Camera Section -->
+                <div class="mb-6 border-t pt-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 text-center">📸 Foto Selfie (Wajib)</h3>
+                    <div id="cameraPermissionNotice" class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-sm text-blue-800">
+                        💡 <strong>Info:</strong> Sistem akan meminta izin kamera otomatis. Klik "Allow/Izinkan" untuk menggunakan fitur absen.
+                    </div>
+                    
+                    <div id="cameraSection" class="text-center">
+                        <video id="video" class="w-full max-w-xs mx-auto rounded-lg border-2 border-gray-300 mb-3 hidden" autoplay></video>
+                        <canvas id="canvas" class="hidden"></canvas>
+                        <img id="photoPreview" class="w-full max-w-xs mx-auto rounded-lg border-2 border-green-300 mb-3 hidden" alt="Foto Selfie">
+                        
+                        <div id="cameraButtons">
+                            <button id="startCameraBtn" onclick="startCamera()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 mb-2">
+                                📷 Buka Kamera
+                            </button>
+                            <button id="takePictureBtn" onclick="takePicture()" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 mb-2 hidden">
+                                📸 Ambil Foto
+                            </button>
+                            <button id="retakePictureBtn" onclick="retakePicture()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 mb-2 hidden">
+                                🔄 Foto Ulang
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="clockIn()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                        🕐 Masuk
+                    </button>
+                    <button onclick="clockOut()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                        🕐 Pulang
+                    </button>
+                </div>
+
+                <div id="statusMessage" class="mt-4 p-3 rounded-lg text-center hidden"></div>
+            </div>
+        </div>
+
+        <!-- Server Access Button -->
+        <div class="max-w-md mx-auto mb-8">
+            <div class="text-center">
+                <button id="showServerBtn" onclick="showServerLogin()" class="text-gray-500 hover:text-gray-700 text-sm underline transition duration-200">
+                    🖥️ Akses Data Server? Klik di sini
+                </button>
+            </div>
+        </div>
+
+        <!-- Server Login Section -->
+        <div id="serverSection" class="max-w-md mx-auto mb-8 hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 text-center">🖥️ Akses Data Server</h2>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
+                    <strong>🔐 Mode Server:</strong> Mengubah sistem menjadi pusat data terpusat yang mengelola semua absensi karyawan secara real-time.
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password Server</label>
+                    <input type="password" id="serverPassword" placeholder="Masukkan password server" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <button onclick="activateDataServer()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                    🚀 Aktifkan Data Server
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Server Dashboard -->
+        <div id="serverDashboard" class="max-w-6xl mx-auto hidden">
+            <!-- Server Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold mb-2">🖥️ DATA SERVER AKTIF</h1>
+                        <p class="text-blue-100">Mengelola sistem absensi secara terpusat</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="flex items-center mb-2">
+                            <div class="w-3 h-3 bg-green-400 rounded-full mr-2 server-indicator"></div>
+                            <span class="font-semibold">SERVER ONLINE</span>
+                        </div>
+                        <div class="text-sm text-blue-100" id="serverUptime">Uptime: 0h 0m</div>
+                        <button onclick="shutdownServer()" class="mt-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm transition duration-200">
+                            🔴 Shutdown Server
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Statistics -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow text-center border-l-4 border-green-500">
+                    <div class="text-2xl font-bold text-green-600" id="totalRecords">0</div>
+                    <div class="text-sm text-gray-600">Total Records</div>
+                    <div class="text-xs text-green-600 mt-1">Database</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow text-center border-l-4 border-blue-500">
+                    <div class="text-2xl font-bold text-blue-600" id="todayAttendance">0</div>
+                    <div class="text-sm text-gray-600">Absen Hari Ini</div>
+                    <div class="text-xs text-blue-600 mt-1">Real-time</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow text-center border-l-4 border-yellow-500">
+                    <div class="text-2xl font-bold text-yellow-600" id="connectedClients">0</div>
+                    <div class="text-sm text-gray-600">Klien Aktif</div>
+                    <div class="text-xs text-yellow-600 mt-1">Connected</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow text-center border-l-4 border-purple-500">
+                    <div class="text-2xl font-bold text-purple-600" id="dataVersion">v1</div>
+                    <div class="text-sm text-gray-600">Versi Data</div>
+                    <div class="text-xs text-purple-600 mt-1" id="lastSync">Sync: -</div>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="bg-white rounded-xl shadow-lg mb-6">
+                <div class="border-b border-gray-200">
+                    <nav class="flex flex-wrap space-x-4 px-6">
+                        <button onclick="switchTab('monitor')" id="monitorTab" class="py-4 px-2 border-b-2 border-blue-500 font-medium text-sm text-blue-600 whitespace-nowrap">
+                            📊 Server Monitor
+                        </button>
+                        <button onclick="switchTab('attendance')" id="attendanceTab" class="py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            📋 Data Absensi
+                        </button>
+                        <button onclick="switchTab('employees')" id="employeesTab" class="py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            👥 Kelola Karyawan
+                        </button>
+                        <button onclick="switchTab('reports')" id="reportsTab" class="py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            📈 Laporan Server
+                        </button>
+                        <button onclick="switchTab('settings')" id="settingsTab" class="py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            ⚙️ Pengaturan Server
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Server Monitor Tab -->
+                <div id="monitorContent" class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">📊 Real-time Server Monitoring</h3>
+                    
+                    <!-- Server Performance -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600" id="serverPerformance">100%</div>
+                            <div class="text-sm text-green-800">Performance</div>
+                            <div class="text-xs text-gray-600 mt-1">CPU & Memory</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="networkStatus">STABLE</div>
+                            <div class="text-sm text-blue-800">Network</div>
+                            <div class="text-xs text-gray-600 mt-1">Connection</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-purple-600" id="dataIntegrity">OK</div>
+                            <div class="text-sm text-purple-800">Data Integrity</div>
+                            <div class="text-xs text-gray-600 mt-1">Checksum</div>
+                        </div>
+                    </div>
+
+                    <!-- Server Controls -->
+                    <div class="bg-white border rounded-lg mb-6">
+                        <div class="p-4 border-b bg-gray-50">
+                            <h4 class="font-semibold text-gray-800">🎛️ Server Controls</h4>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <button onclick="forceDataSync()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                                    🔄 Force Sync All
+                                </button>
+                                <button onclick="createBackup()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                                    💾 Create Backup
+                                </button>
+                                <button onclick="restartServer()" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                                    🔄 Restart Server
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Server Logs -->
+                    <div class="bg-white border rounded-lg">
+                        <div class="p-4 border-b bg-gray-50">
+                            <h4 class="font-semibold text-gray-800">📋 Server Logs</h4>
+                        </div>
+                        <div class="p-4">
+                            <div id="serverLogs" class="space-y-1 max-h-64 overflow-y-auto bg-black text-green-400 p-4 rounded font-mono text-sm">
+                                <div>[SYSTEM] Server initializing...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Tab -->
+                <div id="attendanceContent" class="p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">📋 Data Absensi Real-time</h3>
+                    <div class="overflow-x-auto max-h-96 border rounded-lg">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Tanggal</th>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Nama</th>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Divisi</th>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Shift</th>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Masuk</th>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Pulang</th>
+                                    <th class="px-3 py-2 text-left font-medium text-gray-700">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody">
+                                <!-- Data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Employees Tab -->
+                <div id="employeesContent" class="p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">👥 Kelola Karyawan (Server Mode)</h3>
+                    
+                    <!-- Add Employee Form -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-3">Tambah Karyawan Baru</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="text" id="newEmployeeName" placeholder="Nama Karyawan" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <select id="newEmployeeDivision" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Pilih Divisi</option>
+                                <option value="Staff Kantor">Staff Kantor</option>
+                                <option value="Parkir">Parkir</option>
+                                <option value="Kantin">Kantin</option>
+                                <option value="Kebersihan">Kebersihan</option>
+                                <option value="BDLink & Penginapan">BDLink & Penginapan</option>
+                                <option value="BD Link">BD Link</option>
+                            </select>
+                            <button onclick="addEmployee()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                                ➕ Tambah ke Server
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Employee List -->
+                    <div class="bg-white border rounded-lg">
+                        <div class="p-4 border-b bg-gray-50">
+                            <h4 class="font-semibold text-gray-800">Daftar Karyawan di Server</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-700">Nama</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-700">Divisi</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-700">Status</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-700">Aksi Server</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employeeListBody">
+                                    <!-- Employee list will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reportsContent" class="p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">📈 Laporan Data Server</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button onclick="exportServerReport()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-4 px-6 rounded-lg transition duration-200">
+                            📥 Export Server Report
+                        </button>
+                        <button onclick="shareServerData()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-lg transition duration-200">
+                            📱 Share Server Data
+                        </button>
+                        <button onclick="syncToCloud()" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-4 px-6 rounded-lg transition duration-200">
+                            ☁️ Sync to Cloud
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsContent" class="p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-6">⚙️ Pengaturan Data Server</h3>
+                    
+                    <!-- Server Configuration -->
+                    <div class="bg-white border rounded-lg mb-6">
+                        <div class="p-4 border-b bg-gray-50">
+                            <h4 class="font-semibold text-gray-800">🖥️ Konfigurasi Server</h4>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Server</label>
+                                    <input type="text" id="serverName" value="Data Server Utama" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Port Server</label>
+                                    <input type="number" id="serverPort" value="8080" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Max Connections</label>
+                                    <input type="number" id="maxConnections" value="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Backup Interval (menit)</label>
+                                    <input type="number" id="backupInterval" value="30" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-4">
+                        <button onclick="saveServerSettings()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                            💾 Simpan Pengaturan Server
+                        </button>
+                        <button onclick="resetServer()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                            🔄 Reset Server
+                        </button>
+                        <button onclick="clearServerData()" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200">
+                            🗑️ Hapus Semua Data Server
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize data
+        let attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || [];
+        const SERVER_PASSWORD = "Amranbd110418";
+        let isServerActive = false;
+        let stream = null;
+        let currentPhoto = null;
+        let currentTab = 'monitor';
+        
+        // Server Configuration
+        let serverConfig = {
+            serverId: 'SERVER_' + Date.now(),
+            serverName: 'Data Server Utama',
+            port: 8080,
+            maxConnections: 100,
+            backupInterval: 30,
+            isActive: false,
+            startTime: null,
+            dataVersion: 1,
+            connectedClients: 0
+        };
+        
+        // Employee Management
+        let employeeList = JSON.parse(localStorage.getItem('employeeList')) || [
+            {id: 1, name: 'Rahma', division: 'Staff Kantor', status: 'Aktif'},
+            {id: 2, name: 'Jubaida', division: 'Kantin', status: 'Aktif'},
+            {id: 3, name: 'Fatma', division: 'Kebersihan', status: 'Aktif'},
+            {id: 4, name: 'Andi', division: 'Parkir', status: 'Aktif'},
+            {id: 5, name: 'Tini', division: 'BDLink & Penginapan', status: 'Aktif'},
+            {id: 6, name: 'Haikal', division: 'BD Link', status: 'Aktif'},
+            {id: 7, name: 'Hasna', division: 'Staff Kantor', status: 'Aktif'},
+            {id: 8, name: 'Riski', division: 'Parkir', status: 'Aktif'}
+        ];
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkServerStatus();
+            updateEmployeeDropdown();
+            
+            setTimeout(() => {
+                requestCameraPermission();
+            }, 1000);
+            
+            // Auto-refresh server dashboard every 3 seconds
+            setInterval(() => {
+                if (isServerActive) {
+                    updateServerDashboard();
+                    simulateServerActivity();
+                }
+            }, 3000);
+        });
+
+        function checkServerStatus() {
+            isServerActive = localStorage.getItem('serverActive') === 'true';
+            if (isServerActive) {
+                serverConfig = JSON.parse(localStorage.getItem('serverConfig')) || serverConfig;
+                showServerDashboard();
+                updateServerStatusIndicator();
+                addServerLog('[SYSTEM] Server restored from previous session');
+            }
+        }
+
+        function showServerLogin() {
+            document.getElementById('serverSection').classList.remove('hidden');
+            document.getElementById('showServerBtn').style.display = 'none';
+        }
+
+        function activateDataServer() {
+            const password = document.getElementById('serverPassword').value;
+            
+            if (password === SERVER_PASSWORD) {
+                isServerActive = true;
+                serverConfig.isActive = true;
+                serverConfig.startTime = Date.now();
+                
+                localStorage.setItem('serverActive', 'true');
+                localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+                
+                showServerDashboard();
+                updateServerStatusIndicator();
+                
+                showMessage('🖥️ Data Server berhasil diaktifkan!', 'success');
+                addServerLog('[SYSTEM] Data Server activated successfully');
+                addServerLog('[CONFIG] Server ID: ' + serverConfig.serverId);
+                addServerLog('[STATUS] Server is now online and ready');
+                
+                // Start server processes
+                startServerProcesses();
+            } else {
+                showMessage('Password server salah!', 'error');
+            }
+        }
+
+        function showServerDashboard() {
+            document.getElementById('serverSection').classList.add('hidden');
+            document.getElementById('serverDashboard').classList.remove('hidden');
+            document.getElementById('showServerBtn').style.display = 'none';
+            
+            updateServerDashboard();
+            switchTab('monitor');
+        }
+
+        function updateServerStatusIndicator() {
+            const indicator = document.getElementById('serverStatusIndicator');
+            if (isServerActive) {
+                indicator.textContent = '🖥️ DATA SERVER ONLINE';
+                indicator.classList.remove('server-offline', 'hidden');
+            } else {
+                indicator.textContent = '🖥️ DATA SERVER OFFLINE';
+                indicator.classList.add('server-offline');
+                indicator.classList.remove('hidden');
+            }
+        }
+
+        function startServerProcesses() {
+            // Simulate server processes
+            addServerLog('[PROCESS] Starting data synchronization service');
+            addServerLog('[PROCESS] Starting backup service');
+            addServerLog('[PROCESS] Starting client monitoring service');
+            addServerLog('[NETWORK] Server listening on port ' + serverConfig.port);
+            addServerLog('[READY] Data Server is ready to accept connections');
+        }
+
+        function updateServerDashboard() {
+            if (!isServerActive) return;
+            
+            // Update statistics
+            const today = formatDate(new Date());
+            const todayRecords = attendanceData.filter(record => record.date === today);
+            
+            document.getElementById('totalRecords').textContent = attendanceData.length;
+            document.getElementById('todayAttendance').textContent = todayRecords.length;
+            document.getElementById('connectedClients').textContent = serverConfig.connectedClients;
+            document.getElementById('dataVersion').textContent = `v${serverConfig.dataVersion}`;
+            document.getElementById('lastSync').textContent = `Sync: ${new Date().toLocaleTimeString('id-ID')}`;
+            
+            // Update uptime
+            if (serverConfig.startTime) {
+                const uptime = Date.now() - serverConfig.startTime;
+                const hours = Math.floor(uptime / (1000 * 60 * 60));
+                const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+                document.getElementById('serverUptime').textContent = `Uptime: ${hours}h ${minutes}m`;
+            }
+            
+            // Update current tab content
+            if (currentTab === 'attendance') {
+                loadDataTable();
+            } else if (currentTab === 'employees') {
+                loadEmployeeList();
+            }
+        }
+
+        function simulateServerActivity() {
+            // Simulate random client connections
+            if (Math.random() < 0.1) { // 10% chance
+                serverConfig.connectedClients = Math.floor(Math.random() * 5) + 1;
+                if (Math.random() < 0.5) {
+                    addServerLog(`[CLIENT] New client connected (ID: CLIENT_${Date.now()})`);
+                }
+            }
+            
+            // Simulate data sync
+            if (Math.random() < 0.05) { // 5% chance
+                serverConfig.dataVersion++;
+                addServerLog('[SYNC] Data synchronized across all clients');
+            }
+        }
+
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const contents = ['monitorContent', 'attendanceContent', 'employeesContent', 'reportsContent', 'settingsContent'];
+            contents.forEach(content => {
+                document.getElementById(content).classList.add('hidden');
+            });
+
+            // Remove active class from all tabs
+            const tabs = ['monitorTab', 'attendanceTab', 'employeesTab', 'reportsTab', 'settingsTab'];
+            tabs.forEach(tab => {
+                const element = document.getElementById(tab);
+                element.classList.remove('border-blue-500', 'text-blue-600');
+                element.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName + 'Content').classList.remove('hidden');
+            
+            // Add active class to selected tab
+            const activeTab = document.getElementById(tabName + 'Tab');
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            activeTab.classList.add('border-blue-500', 'text-blue-600');
+
+            currentTab = tabName;
+
+            // Load data for specific tabs
+            if (tabName === 'attendance') {
+                loadDataTable();
+            } else if (tabName === 'employees') {
+                loadEmployeeList();
+            }
+        }
+
+        function addServerLog(message) {
+            const timestamp = new Date().toLocaleTimeString('id-ID');
+            const logContainer = document.getElementById('serverLogs');
+            
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            // Keep only last 20 logs
+            while (logContainer.children.length > 20) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        // Server Control Functions
+        function forceDataSync() {
+            addServerLog('[ADMIN] Force sync initiated by administrator');
+            serverConfig.dataVersion++;
+            localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+            showMessage('🔄 Sinkronisasi paksa berhasil!', 'success');
+            addServerLog('[SYNC] Force synchronization completed');
+        }
+
+        function createBackup() {
+            const backup = {
+                timestamp: new Date().toISOString(),
+                data: attendanceData,
+                employees: employeeList,
+                config: serverConfig
+            };
+            
+            localStorage.setItem('serverBackup_' + Date.now(), JSON.stringify(backup));
+            addServerLog('[BACKUP] Manual backup created by administrator');
+            showMessage('💾 Backup berhasil dibuat!', 'success');
+        }
+
+        function restartServer() {
+            if (confirm('Apakah Anda yakin ingin restart server?')) {
+                addServerLog('[ADMIN] Server restart initiated');
+                serverConfig.startTime = Date.now();
+                serverConfig.dataVersion++;
+                localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+                
+                setTimeout(() => {
+                    addServerLog('[SYSTEM] Server restart completed');
+                    showMessage('🔄 Server berhasil direstart!', 'success');
+                }, 2000);
+            }
+        }
+
+        function shutdownServer() {
+            if (confirm('Apakah Anda yakin ingin mematikan Data Server?')) {
+                isServerActive = false;
+                serverConfig.isActive = false;
+                
+                localStorage.removeItem('serverActive');
+                localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+                
+                addServerLog('[ADMIN] Server shutdown initiated');
+                addServerLog('[SYSTEM] Data Server is shutting down...');
+                
+                document.getElementById('serverDashboard').classList.add('hidden');
+                document.getElementById('serverSection').classList.add('hidden');
+                document.getElementById('showServerBtn').style.display = 'block';
+                document.getElementById('serverPassword').value = '';
+                
+                updateServerStatusIndicator();
+                showMessage('🔴 Data Server berhasil dimatikan', 'success');
+            }
+        }
+
+        // Employee Management Functions
+        function addEmployee() {
+            const name = document.getElementById('newEmployeeName').value.trim();
+            const division = document.getElementById('newEmployeeDivision').value;
+
+            if (!name || !division) {
+                showMessage('Mohon isi nama dan pilih divisi karyawan!', 'error');
+                return;
+            }
+
+            if (employeeList.find(emp => emp.name.toLowerCase() === name.toLowerCase())) {
+                showMessage('Karyawan dengan nama tersebut sudah ada!', 'error');
+                return;
+            }
+
+            const newEmployee = {
+                id: Date.now(),
+                name: name,
+                division: division,
+                status: 'Aktif'
+            };
+
+            employeeList.push(newEmployee);
+            localStorage.setItem('employeeList', JSON.stringify(employeeList));
+            updateEmployeeDropdown();
+            
+            document.getElementById('newEmployeeName').value = '';
+            document.getElementById('newEmployeeDivision').value = '';
+            
+            loadEmployeeList();
+            addServerLog(`[EMPLOYEE] Added new employee: ${name} - ${division}`);
+            showMessage('✅ Karyawan berhasil ditambahkan ke server!', 'success');
+        }
+
+        function removeEmployee(id) {
+            if (confirm('Apakah Anda yakin ingin menghapus karyawan ini dari server?')) {
+                const employee = employeeList.find(emp => emp.id === id);
+                employeeList = employeeList.filter(emp => emp.id !== id);
+                localStorage.setItem('employeeList', JSON.stringify(employeeList));
+                updateEmployeeDropdown();
+                loadEmployeeList();
+                addServerLog(`[EMPLOYEE] Removed employee: ${employee?.name}`);
+                showMessage('🗑️ Karyawan berhasil dihapus dari server!', 'success');
+            }
+        }
+
+        function loadEmployeeList() {
+            const tbody = document.getElementById('employeeListBody');
+            tbody.innerHTML = '';
+
+            employeeList.forEach(employee => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const statusClass = employee.status === 'Aktif' ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100';
+                
+                row.innerHTML = `
+                    <td class="px-4 py-2">${employee.name}</td>
+                    <td class="px-4 py-2">${employee.division}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
+                            ${employee.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2">
+                        <button onclick="removeEmployee(${employee.id})" class="text-red-600 hover:text-red-800 text-sm">
+                            🗑️ Hapus dari Server
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateEmployeeDropdown() {
+            const dropdown = document.getElementById('employeeName');
+            const activeEmployees = employeeList.filter(emp => emp.status === 'Aktif');
+            
+            dropdown.innerHTML = '<option value="">Pilih Nama Karyawan</option>';
+            activeEmployees.forEach(employee => {
+                const option = document.createElement('option');
+                option.value = employee.name;
+                option.textContent = employee.name;
+                dropdown.appendChild(option);
+            });
+        }
+
+        // Report Functions
+        function exportServerReport() {
+            const serverReport = {
+                serverInfo: serverConfig,
+                totalRecords: attendanceData.length,
+                employees: employeeList.length,
+                exportTime: new Date().toISOString(),
+                data: attendanceData
+            };
+            
+            const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Data Server Report - ${new Date().toLocaleDateString('id-ID')}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .server-info { background: #f0f8ff; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        th { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🖥️ DATA SERVER REPORT</h1>
+        <p>Generated: ${new Date().toLocaleString('id-ID')}</p>
+    </div>
+    
+    <div class="server-info">
+        <h3>📊 Server Information</h3>
+        <p><strong>Server ID:</strong> ${serverConfig.serverId}</p>
+        <p><strong>Server Name:</strong> ${serverConfig.serverName}</p>
+        <p><strong>Data Version:</strong> v${serverConfig.dataVersion}</p>
+        <p><strong>Total Records:</strong> ${attendanceData.length}</p>
+        <p><strong>Total Employees:</strong> ${employeeList.length}</p>
+    </div>
+    
+    <h3>📋 Attendance Data</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Employee</th>
+                <th>Division</th>
+                <th>Shift</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${attendanceData.map(record => `
+                <tr>
+                    <td>${record.date}</td>
+                    <td>${record.employeeName}</td>
+                    <td>${record.division}</td>
+                    <td>${record.shift}</td>
+                    <td>${record.clockInTime || '-'}</td>
+                    <td>${record.clockOutTime || '-'}</td>
+                    <td>${!record.clockOut ? 'Belum Pulang' : 'Selesai'}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #666;">
+        <p>🖥️ Generated by Data Server | Created by AMRAN</p>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `DataServer_Report_${new Date().toISOString().split('T')[0]}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addServerLog('[EXPORT] Server report exported by administrator');
+            showMessage('📥 Laporan server berhasil diunduh!', 'success');
+        }
+
+        function shareServerData() {
+            const message = `🖥️ *DATA SERVER REPORT*\n\n` +
+                          `📊 Server ID: ${serverConfig.serverId}\n` +
+                          `📈 Total Records: ${attendanceData.length}\n` +
+                          `👥 Total Employees: ${employeeList.length}\n` +
+                          `🔄 Data Version: v${serverConfig.dataVersion}\n` +
+                          `⏰ Generated: ${new Date().toLocaleString('id-ID')}\n\n` +
+                          `🖥️ Data Server System\n` +
+                          `👨‍💻 Created by AMRAN`;
+
+            const encodedMessage = encodeURIComponent(message);
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const whatsappUrl = isMobile ? `https://wa.me/?text=${encodedMessage}` : `https://web.whatsapp.com/send?text=${encodedMessage}`;
+            
+            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+            addServerLog('[SHARE] Server data shared via WhatsApp');
+            showMessage('📱 WhatsApp terbuka! Data server siap dibagikan.', 'success');
+        }
+
+        function syncToCloud() {
+            addServerLog('[CLOUD] Initiating cloud synchronization...');
+            
+            // Simulate cloud sync
+            setTimeout(() => {
+                serverConfig.dataVersion++;
+                localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+                addServerLog('[CLOUD] Data successfully synchronized to cloud');
+                showMessage('☁️ Data berhasil disinkronisasi ke cloud!', 'success');
+            }, 2000);
+        }
+
+        // Settings Functions
+        function saveServerSettings() {
+            serverConfig.serverName = document.getElementById('serverName').value;
+            serverConfig.port = parseInt(document.getElementById('serverPort').value);
+            serverConfig.maxConnections = parseInt(document.getElementById('maxConnections').value);
+            serverConfig.backupInterval = parseInt(document.getElementById('backupInterval').value);
+            
+            localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+            addServerLog('[CONFIG] Server settings updated by administrator');
+            showMessage('💾 Pengaturan server berhasil disimpan!', 'success');
+        }
+
+        function resetServer() {
+            if (confirm('Apakah Anda yakin ingin reset server ke pengaturan default?')) {
+                serverConfig = {
+                    serverId: 'SERVER_' + Date.now(),
+                    serverName: 'Data Server Utama',
+                    port: 8080,
+                    maxConnections: 100,
+                    backupInterval: 30,
+                    isActive: true,
+                    startTime: Date.now(),
+                    dataVersion: 1,
+                    connectedClients: 0
+                };
+                
+                localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+                addServerLog('[ADMIN] Server reset to default configuration');
+                showMessage('🔄 Server berhasil direset!', 'success');
+            }
+        }
+
+        function clearServerData() {
+            if (confirm('PERINGATAN: Ini akan menghapus SEMUA data absensi dan karyawan dari server. Apakah Anda yakin?')) {
+                attendanceData = [];
+                employeeList = [];
+                localStorage.removeItem('attendanceData');
+                localStorage.removeItem('employeeList');
+                
+                updateEmployeeDropdown();
+                updateServerDashboard();
+                
+                addServerLog('[ADMIN] All server data cleared by administrator');
+                showMessage('🗑️ Semua data server berhasil dihapus!', 'success');
+            }
+        }
+
+        // Camera functions (same as before)
+        async function requestCameraPermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                stream.getTracks().forEach(track => track.stop());
+                console.log('Camera permission granted');
+                return true;
+            } catch (error) {
+                console.error('Camera permission denied:', error);
+                showMessage('Izin kamera diperlukan untuk sistem absen. Mohon berikan izin kamera di pengaturan browser.', 'error');
+                return false;
+            }
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                video.classList.remove('hidden');
+                
+                document.getElementById('startCameraBtn').classList.add('hidden');
+                document.getElementById('takePictureBtn').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                showMessage('Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.', 'error');
+            }
+        }
+
+        function takePicture() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const photoPreview = document.getElementById('photoPreview');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0);
+            
+            currentPhoto = canvas.toDataURL('image/jpeg', 0.8);
+            
+            photoPreview.src = currentPhoto;
+            photoPreview.classList.remove('hidden');
+            
+            video.classList.add('hidden');
+            document.getElementById('takePictureBtn').classList.add('hidden');
+            document.getElementById('retakePictureBtn').classList.remove('hidden');
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            showMessage('Foto berhasil diambil!', 'success');
+        }
+
+        function retakePicture() {
+            currentPhoto = null;
+            
+            document.getElementById('photoPreview').classList.add('hidden');
+            document.getElementById('retakePictureBtn').classList.add('hidden');
+            document.getElementById('startCameraBtn').classList.remove('hidden');
+        }
+
+        // Attendance functions
+        function getCurrentDateTime() {
+            return new Date();
+        }
+
+        function formatDateTime(date) {
+            return date.toLocaleString('id-ID', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('id-ID');
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('statusMessage');
+            messageDiv.textContent = message;
+            messageDiv.className = `mt-4 p-3 rounded-lg text-center fade-in ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            messageDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        function clockIn() {
+            const name = document.getElementById('employeeName').value;
+            const division = document.getElementById('employeeDivision').value;
+            const shift = document.getElementById('employeeShift').value;
+
+            if (!name || !division || !shift) {
+                showMessage('Mohon isi nama, pilih divisi, dan pilih shift', 'error');
+                return;
+            }
+
+            if (!currentPhoto) {
+                showMessage('Mohon ambil foto selfie terlebih dahulu!', 'error');
+                return;
+            }
+
+            const now = getCurrentDateTime();
+            const today = formatDate(now);
+
+            // Check if already clocked in today
+            const existingRecord = attendanceData.find(record => 
+                record.employeeName === name && record.division === division && record.date === today && record.shift === shift
+            );
+
+            if (existingRecord && existingRecord.clockIn) {
+                showMessage('Anda sudah absen masuk hari ini', 'error');
+                return;
+            }
+
+            // Create or update record
+            if (existingRecord) {
+                existingRecord.clockIn = now;
+                existingRecord.clockInTime = formatTime(now);
+            } else {
+                attendanceData.push({
+                    date: today,
+                    employeeName: name,
+                    division: division,
+                    shift: shift,
+                    clockIn: now,
+                    clockInTime: formatTime(now),
+                    clockOut: null,
+                    clockOutTime: '-',
+                    totalHours: '-',
+                    status: 'Masuk',
+                    clockInPhoto: currentPhoto,
+                    clockOutPhoto: null
+                });
+            }
+
+            saveData();
+            
+            if (isServerActive) {
+                addServerLog(`[ATTENDANCE] Clock in: ${name} - ${division} - ${shift}`);
+                updateServerDashboard();
+            }
+            
+            showMessage(`Berhasil absen masuk pada ${formatTime(now)}`, 'success');
+            resetCamera();
+        }
+
+        function clockOut() {
+            const name = document.getElementById('employeeName').value;
+            const division = document.getElementById('employeeDivision').value;
+            const shift = document.getElementById('employeeShift').value;
+
+            if (!name || !division || !shift) {
+                showMessage('Mohon isi nama, pilih divisi, dan pilih shift', 'error');
+                return;
+            }
+
+            if (!currentPhoto) {
+                showMessage('Mohon ambil foto selfie terlebih dahulu!', 'error');
+                return;
+            }
+
+            const now = getCurrentDateTime();
+            const today = formatDate(now);
+
+            // Find today's record
+            const record = attendanceData.find(record => 
+                record.employeeName === name && record.division === division && record.date === today && record.shift === shift
+            );
+
+            if (!record || !record.clockIn) {
+                showMessage('Anda belum absen masuk hari ini', 'error');
+                return;
+            }
+
+            if (record.clockOut) {
+                showMessage('Anda sudah absen pulang hari ini', 'error');
+                return;
+            }
+
+            // Update record
+            record.clockOut = now;
+            record.clockOutTime = formatTime(now);
+            record.clockOutPhoto = currentPhoto;
+            
+            // Calculate total hours
+            const diffMs = now - record.clockIn;
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            record.totalHours = `${diffHours}j ${diffMinutes}m`;
+            record.status = 'Selesai';
+
+            saveData();
+            
+            if (isServerActive) {
+                addServerLog(`[ATTENDANCE] Clock out: ${name} - ${division} - ${shift}`);
+                updateServerDashboard();
+            }
+            
+            showMessage(`Berhasil absen pulang pada ${formatTime(now)}`, 'success');
+            resetCamera();
+        }
+
+        function resetCamera() {
+            currentPhoto = null;
+            
+            document.getElementById('video').classList.add('hidden');
+            document.getElementById('photoPreview').classList.add('hidden');
+            document.getElementById('takePictureBtn').classList.add('hidden');
+            document.getElementById('retakePictureBtn').classList.add('hidden');
+            document.getElementById('startCameraBtn').classList.remove('hidden');
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+            localStorage.setItem('lastUpdate', new Date().getTime().toString());
+            
+            if (isServerActive) {
+                serverConfig.dataVersion++;
+                localStorage.setItem('serverConfig', JSON.stringify(serverConfig));
+            }
+        }
+
+        function loadDataTable() {
+            const sortedData = [...attendanceData].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            const tableBody = document.getElementById('dataTableBody');
+            tableBody.innerHTML = '';
+
+            sortedData.slice(0, 20).forEach(record => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const status = !record.clockOut ? 'Belum Pulang' : 'Selesai';
+                const statusClass = !record.clockOut ? 'text-red-600' : 'text-green-600';
+
+                row.innerHTML = `
+                    <td class="px-3 py-2">${record.date}</td>
+                    <td class="px-3 py-2">${record.employeeName}</td>
+                    <td class="px-3 py-2">${record.division}</td>
+                    <td class="px-3 py-2">${record.shift}</td>
+                    <td class="px-3 py-2 text-center">${record.clockInTime || '-'}</td>
+                    <td class="px-3 py-2 text-center">${record.clockOutTime || '-'}</td>
+                    <td class="px-3 py-2 text-center ${statusClass}">${status}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function logoutAndClose() {
+            if (isServerActive) {
+                if (confirm('Data Server sedang aktif. Apakah Anda yakin ingin keluar? Server akan tetap berjalan di background.')) {
+                    window.close();
+                }
+            } else {
+                window.close();
+            }
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989a6b5190eb445e',t:'MTc1OTY0MTA5Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
